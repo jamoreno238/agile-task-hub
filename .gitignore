@@ -1,0 +1,14 @@
+.env
+**/.env
+backend/.dotnet-home/
+backend/.appdata/
+backend/.nuget-packages/
+backend/.tools/
+backend/**/bin/
+backend/**/obj/
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/app.component.generated.html
+*.user
+*.suo

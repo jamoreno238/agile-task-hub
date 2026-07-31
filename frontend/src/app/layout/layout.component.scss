@@ -1,0 +1,22 @@
+:host { display: block; min-height: 100vh; }
+.shell { min-height: 100vh; display: flex; background: #f8fafc; color: #263342; }
+.sidebar { width: 260px; display: flex; flex-direction: column; padding: 1.5rem 1rem 1rem; background: #fff; border-right: 1px solid #edf0f4; }
+.brand { padding: 0 .8rem 2.1rem; }
+.eyebrow { display: block; color: #98a2b3; font-size: .67rem; font-weight: 700; letter-spacing: .11em; margin: 0 .75rem .8rem; }
+.workspace-switcher { padding-bottom: 1.8rem; }
+.workspace-button { width: 100%; display: flex; align-items: center; gap: .65rem; padding: .7rem .75rem; border: 1px solid #e6eaf0; background: #fbfcfe; border-radius: .65rem; color: #344054; font: inherit; cursor: pointer; }
+.workspace-button i { margin-left: auto; font-size: .75rem; color: #98a2b3; }
+.workspace-dot { width: 1.35rem; height: 1.35rem; border-radius: .45rem; background: linear-gradient(135deg, #818cf8, #4f46e5); }
+.navigation { display: flex; flex-direction: column; gap: .22rem; }
+.navigation a { display: flex; align-items: center; gap: .75rem; padding: .7rem .8rem; border-radius: .55rem; color: #667085; text-decoration: none; font-size: .9rem; cursor: pointer; }
+.navigation a:hover, .navigation a.active { background: #eef2ff; color: #4f46e5; }
+.navigation a i { width: 1.1rem; font-size: 1rem; }
+.nav-count, .soon { margin-left: auto; font-size: .7rem; color: #98a2b3; }
+.soon { padding: .16rem .4rem; border-radius: .3rem; background: #f2f4f7; }
+.section-label { margin-top: 1.5rem; }
+.sidebar-footer { margin-top: auto; }
+.help-card { display: flex; flex-direction: column; gap: .45rem; padding: 1rem; margin: 1rem .35rem 1.2rem; border-radius: .85rem; background: linear-gradient(145deg, #f1f5ff, #f8f5ff); color: #667085; font-size: .75rem; }
+.help-card > i { color: #6366f1; }.help-card strong { color: #344054; font-size: .85rem; }.help-card button { align-self: flex-start; padding: 0; border: 0; background: transparent; color: #4f46e5; font-size: .72rem; font-weight: 600; cursor: pointer; }
+.profile { display: flex; align-items: center; gap: .65rem; border-top: 1px solid #edf0f4; padding: 1rem .35rem 0; }.profile div { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }.profile strong { color: #344054; font-size: .78rem; }.profile span { color: #98a2b3; font-size: .7rem; }.profile > i { margin-left: auto; color: #98a2b3; }
+.main-content { min-width: 0; flex: 1; }.topbar { display: flex; justify-content: space-between; align-items: center; min-height: 76px; padding: 0 2.7rem; background: #fff; border-bottom: 1px solid #edf0f4; }.breadcrumb { display: flex; align-items: center; gap: .7rem; font-size: .82rem; color: #98a2b3; }.breadcrumb i { font-size: .68rem; }.breadcrumb strong { color: #344054; }.topbar-actions { display: flex; align-items: center; gap: .75rem; }.icon-button { width: 2.2rem; height: 2.2rem; border: 0; color: #667085; background: transparent; border-radius: 50%; cursor: pointer; position: relative; }.icon-button:hover { background: #f2f4f7; }.notification span { position: absolute; top: .25rem; right: .28rem; width: .38rem; height: .38rem; background: #f97316; border-radius: 50%; border: 2px solid #fff; }.page-content { padding: 2.7rem; max-width: 1500px; margin: 0 auto; }
+@media (max-width: 900px) { .sidebar { width: 76px; padding-inline: .65rem; }.brand { padding-inline: .35rem; }.logo-label, .workspace-switcher, .navigation .eyebrow, .navigation a span, .help-card, .profile div, .profile > i { display: none; }.navigation a { justify-content: center; }.profile { justify-content: center; }.topbar { padding-inline: 1.5rem; }.page-content { padding: 1.5rem; } }

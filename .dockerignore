@@ -1,0 +1,11 @@
+.git
+.gitignore
+.env
+**/bin/
+**/obj/
+frontend/node_modules/
+frontend/dist/
+backend/.dotnet-home/
+backend/.appdata/
+backend/.nuget-packages/
+backend/.tools/
