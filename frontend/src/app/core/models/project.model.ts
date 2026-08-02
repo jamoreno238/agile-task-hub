@@ -1,11 +1,33 @@
-export type ProjectStatus = 'Planned' | 'Active' | 'Completed' | 'Cancelled';
+﻿export enum ProjectStatus {
+  Planned = 'Planned',
+  Active = 'Active',
+  Completed = 'Completed',
+  Cancelled = 'Cancelled'
+}
 
-export interface ProjectSummary {
+export interface Project {
   id: string;
   name: string;
   description: string;
+  startDate: string;
+  expectedEndDate: string;
   status: ProjectStatus;
-  progress: number;
-  dueDate: string;
-  members: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectRequest {
+  name: string;
+  description: string;
+  startDate: string;
+  expectedEndDate: string;
+  status: ProjectStatus;
+}
+
+export interface PagedResult<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
 }

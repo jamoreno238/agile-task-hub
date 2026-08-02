@@ -1,4 +1,4 @@
-import { Routes } from '@angular/router';
-import { AuthPlaceholderComponent } from './auth-placeholder.component';
+﻿import { Routes } from '@angular/router';
+import { LoginComponent } from './login/login.component';
 
-export const authRoutes: Routes = [{ path: '', component: AuthPlaceholderComponent }];
+export const authRoutes: Routes = [{ path: '', component: LoginComponent }];

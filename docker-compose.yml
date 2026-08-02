@@ -1,4 +1,4 @@
-services:
+﻿services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -25,10 +25,12 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_ISSUER: ${JWT_ISSUER}
-      JWT_AUDIENCE: ${JWT_AUDIENCE}
-      PASSWORD_PEPPER: ${PASSWORD_PEPPER}
+      Jwt__Secret: ${Jwt__Secret}
+      Jwt__Issuer: ${Jwt__Issuer}
+      Jwt__Audience: ${Jwt__Audience}
+      Security__PasswordPepper: ${Security__PasswordPepper}
+      Admin__Email: ${Admin__Email}
+      Admin__Password: ${Admin__Password}
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:

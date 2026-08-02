@@ -1,3 +1,4 @@
+﻿using AgileTaskHub.Application.Persistence;
 using AgileTaskHub.Application.Security;
 using AgileTaskHub.Infrastructure.Persistence;
 using AgileTaskHub.Infrastructure.Security;
@@ -16,7 +17,11 @@ public static class DependencyInjection
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql => npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)));
-        services.AddScoped<IPasswordHashingService, PasswordHashingService>();
+        services.AddScoped<IPasswordHasher, SecurePasswordHasher>();
+        services.AddScoped<IPasswordHashingService, SecurePasswordHasher>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ITokenService, JwtTokenService>();
+        services.AddScoped<IAuthenticationService, AuthenticationService>();
         return services;
     }
 }

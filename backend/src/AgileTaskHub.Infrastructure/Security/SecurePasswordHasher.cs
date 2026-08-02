@@ -1,11 +1,11 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text;
 using AgileTaskHub.Application.Security;
 using Microsoft.Extensions.Configuration;
 
 namespace AgileTaskHub.Infrastructure.Security;
 
-public sealed class PasswordHashingService(IConfiguration configuration) : IPasswordHashingService
+public sealed class SecurePasswordHasher(IConfiguration configuration) : IPasswordHasher, IPasswordHashingService
 {
     private const int SaltSize = 16;
     private const int HashSize = 64;
