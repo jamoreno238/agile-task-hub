@@ -18,7 +18,7 @@ export const routes: Routes = [
       },
       {
         path: 'projects/:projectId/board',
-        loadComponent: () => import('./features/board/board-page.component').then((m) => m.BoardPageComponent)
+        loadComponent: () => import('./features/board/board.component').then((m) => m.BoardComponent)
       }
     ]
   },

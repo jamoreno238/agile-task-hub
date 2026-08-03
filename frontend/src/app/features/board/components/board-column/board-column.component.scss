@@ -1,0 +1,13 @@
+.column { min-height: 25rem; padding: .8rem; border-radius: .8rem; background: #f1f4f8; }
+.column-heading { display: flex; align-items: center; justify-content: space-between; gap: .4rem; padding: .25rem .35rem .8rem; }
+.column-title { display: flex; align-items: center; min-width: 0; gap: .5rem; }
+.column-title strong { overflow: hidden; color: #344054; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
+.column-title small { display: grid; place-items: center; width: 1.25rem; height: 1.25rem; flex: 0 0 auto; border-radius: 50%; background: #e2e8f0; color: #667085; font-size: .68rem; }
+.column-dot { width: .5rem; height: .5rem; flex: 0 0 auto; border-radius: 50%; background: #6366f1; }
+.column-actions { display: flex; gap: .05rem; }
+.column-actions button { width: 1.6rem; height: 1.6rem; padding: 0; border: 0; border-radius: .35rem; background: transparent; color: #98a2b3; cursor: pointer; }
+.column-actions button:hover { color: #6366f1; background: #e6eafe; }
+.task-list { min-height: 5rem; padding: .1rem; border-radius: .55rem; }
+.empty-column { padding: 1.4rem .4rem; color: #98a2b3; font-size: .7rem; text-align: center; }
+.add-card { width: 100%; padding: .65rem; border: 1px dashed #cbd5e1; border-radius: .5rem; background: transparent; color: #98a2b3; font: inherit; font-size: .72rem; cursor: pointer; }
+.add-card:hover { color: #6366f1; border-color: #a5b4fc; background: #fff; }

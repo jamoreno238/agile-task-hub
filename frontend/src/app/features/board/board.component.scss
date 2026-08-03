@@ -1,0 +1,25 @@
+.board-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+.back-link { display: block; margin-bottom: .7rem; padding: 0; border: 0; background: transparent; color: #6366f1; font: inherit; font-size: .72rem; cursor: pointer; }
+.back-link i { margin-right: .25rem; }
+.kicker { color: #6366f1; font-size: .7rem; font-weight: 700; letter-spacing: .12em; }
+.board-heading h1 { margin: .5rem 0 .35rem; color: #182230; font-size: 1.75rem; letter-spacing: -.04em; }
+.board-heading p { max-width: 42rem; margin: 0; color: #98a2b3; font-size: .85rem; }
+.heading-actions { display: flex; gap: .5rem; }
+.board-toolbar { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: .7rem; color: #98a2b3; font-size: .72rem; }
+.hint { color: #98a2b3; }
+.hint i { margin-right: .25rem; }
+.board-grid { display: flex; align-items: flex-start; gap: 1rem; min-height: 28rem; overflow-x: auto; padding: .2rem .1rem 1rem; }
+.column-drag { width: 17rem; min-width: 17rem; }
+.column-drag.cdk-drag-preview { opacity: .85; }
+.column-drag.cdk-drag-animating, .board-grid.cdk-drop-list-dragging .column-drag:not(.cdk-drag-placeholder) { transition: transform 250ms cubic-bezier(0, 0, 0.2, 1); }
+.empty-board { display: flex; align-items: center; flex-direction: column; gap: .55rem; width: min(25rem, 100%); margin: 2rem auto; padding: 2.5rem 1.5rem; border: 1px dashed #cbd5e1; border-radius: .9rem; color: #98a2b3; text-align: center; }
+.empty-board i { color: #818cf8; font-size: 2rem; }
+.empty-board strong { color: #344054; }
+.empty-board span { margin-bottom: .5rem; font-size: .76rem; }
+.loading-state { display: flex; align-items: center; justify-content: center; gap: .5rem; min-height: 20rem; color: #98a2b3; font-size: .8rem; }
+.column-form { display: flex; flex-direction: column; gap: .5rem; }
+.column-form label { margin-top: .2rem; color: #475467; font-size: .78rem; font-weight: 600; }
+.column-form input { width: 100%; }
+.column-form small { color: #dc2626; font-size: .7rem; }
+.form-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: .8rem; }
+@media (max-width: 700px) { .board-heading { align-items: flex-start; flex-direction: column; }.board-toolbar { align-items: flex-start; flex-direction: column; gap: .2rem; }.column-drag { width: 16rem; min-width: 16rem; } }
