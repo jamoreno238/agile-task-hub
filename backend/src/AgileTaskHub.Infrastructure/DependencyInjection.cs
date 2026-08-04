@@ -1,6 +1,10 @@
-﻿using AgileTaskHub.Application.Persistence;
+using AgileTaskHub.Application.Board;
+using AgileTaskHub.Application.Persistence;
+using AgileTaskHub.Application.Reports;
 using AgileTaskHub.Application.Security;
 using AgileTaskHub.Infrastructure.Persistence;
+using AgileTaskHub.Infrastructure.Realtime;
+using AgileTaskHub.Infrastructure.Reports;
 using AgileTaskHub.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -22,6 +26,11 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ITokenService, JwtTokenService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<IBoardEventPublisher, SignalRBoardEventPublisher>();
+        services.AddScoped<IProjectReportQuery, ProjectReportQuery>();
+        services.AddScoped<IProjectReportExportService, ProjectReportExportService>();
+        services.AddTransient<IProjectReportExporter, QuestPdfProjectReportExporter>();
+        services.AddTransient<IProjectReportExporter, ClosedXmlProjectReportExporter>();
         return services;
     }
 }

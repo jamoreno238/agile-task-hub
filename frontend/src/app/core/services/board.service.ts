@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { appConfig } from '../config/app-config';
 import {
@@ -63,5 +63,12 @@ export class BoardService {
       `${this.projectsEndpoint}/${projectId}/columns/${columnId}/tasks/sort-by-priority`,
       {}
     );
+  }
+
+  downloadReport(projectId: string, format: 'pdf' | 'excel'): Observable<HttpResponse<Blob>> {
+    return this.http.get(`${this.projectsEndpoint}/${projectId}/reports/${format}`, {
+      observe: 'response',
+      responseType: 'blob'
+    });
   }
 }

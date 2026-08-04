@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { filter } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
@@ -14,6 +15,7 @@ import { BoardColumnComponent } from './components/board-column/board-column.com
 import { TaskFormComponent } from './components/task-form/task-form.component';
 import { BoardColumn, BoardTask, ColumnSummary, CreateTaskRequest, ProjectBoard, ResponsibleUser, TaskMoveRequest, UpdateTaskRequest } from '../../core/models/board.model';
 import { BoardService } from '../../core/services/board.service';
+import { BoardRealtimeEvent, BoardRealtimeService } from '../../core/services/board-realtime.service';
 
 @Component({
   selector: 'app-board',
@@ -31,6 +33,8 @@ import { BoardService } from '../../core/services/board.service';
           <p>{{ currentBoard.description || 'Organiza el trabajo y mueve las tareas a través del flujo.' }}</p>
         </div>
         <div class="heading-actions">
+          <button pButton label="PDF" icon="pi pi-file-pdf" [outlined]="true" [loading]="downloadingReport === 'pdf'" (click)="downloadReport('pdf')"></button>
+          <button pButton label="Excel" icon="pi pi-file-excel" [outlined]="true" [loading]="downloadingReport === 'excel'" (click)="downloadReport('excel')"></button>
           <button pButton label="Nueva columna" icon="pi pi-plus" [outlined]="true" (click)="openCreateColumn()"></button>
         </div>
       </div>
@@ -99,12 +103,13 @@ import { BoardService } from '../../core/services/board.service';
   `,
   styleUrls: ['./board.component.scss']
 })
-export class BoardComponent implements OnInit {
+export class BoardComponent implements OnInit, OnDestroy {
   board: ProjectBoard | null = null;
   loading = false;
   saving = false;
   columnDialogVisible = false;
   taskDialogVisible = false;
+  downloadingReport: 'pdf' | 'excel' | null = null;
   editingColumn: BoardColumn | null = null;
   editingTask: BoardTask | null = null;
   taskColumnId: string | null = null;
@@ -113,6 +118,7 @@ export class BoardComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly boardService = inject(BoardService);
+  private readonly boardRealtimeService = inject(BoardRealtimeService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
   private readonly destroyRef = inject(DestroyRef);
@@ -126,7 +132,17 @@ export class BoardComponent implements OnInit {
 
   ngOnInit(): void {
     this.projectId = this.route.snapshot.paramMap.get('projectId') ?? '';
+    this.boardRealtimeService.events$
+      .pipe(
+        filter(event => event.projectId === this.projectId),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(event => this.handleRealtimeEvent(event));
     this.loadBoard();
+  }
+
+  ngOnDestroy(): void {
+    void this.boardRealtimeService.leaveBoard();
   }
 
   loadBoard(): void {
@@ -136,7 +152,11 @@ export class BoardComponent implements OnInit {
 
     this.loading = true;
     this.boardService.getBoard(this.projectId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: board => { this.board = this.normalizeBoard(board); this.loading = false; },
+      next: board => {
+        this.board = this.normalizeBoard(board);
+        this.loading = false;
+        void this.boardRealtimeService.joinBoard(this.projectId).catch(error => this.showError(error, 'No se pudo conectar al tablero'));
+      },
       error: error => { this.loading = false; this.showError(error); }
     });
   }
@@ -329,6 +349,126 @@ export class BoardComponent implements OnInit {
     });
   }
 
+  handleRealtimeEvent(event: BoardRealtimeEvent): void {
+    if (!this.board || event.projectId !== this.board.id) {
+      return;
+    }
+
+    switch (event.eventType) {
+      case 'TaskCreated': {
+        const task = event.state as BoardTask;
+        if (!task?.id || this.board.columns.some(column => column.tasks.some(item => item.id === task.id))) {
+          return;
+        }
+
+        this.board = {
+          ...this.board,
+          columns: this.board.columns.map(column => column.id === task.columnId
+            ? { ...column, tasks: this.normalizeTasks([...column.tasks, task]) }
+            : column)
+        };
+        return;
+      }
+      case 'TaskUpdated': {
+        const task = event.state as BoardTask;
+        if (task?.id) {
+          this.board = this.replaceTask(this.board, task);
+        }
+        return;
+      }
+      case 'TaskDeleted': {
+        const taskId = event.resourceId;
+        if (taskId) {
+          this.board = {
+            ...this.board,
+            columns: this.board.columns.map(column => ({ ...column, tasks: column.tasks.filter(task => task.id !== taskId) }))
+          };
+        }
+        return;
+      }
+      case 'TaskMoved': {
+        const canonicalBoard = event.state as ProjectBoard;
+        if (canonicalBoard?.id === this.board.id) {
+          this.board = this.normalizeBoard(canonicalBoard);
+        }
+        return;
+      }
+      case 'TasksReordered': {
+        const state = event.state as { columnId?: string; tasks?: { taskId: string; position: number }[] };
+        if (!state?.columnId || !state.tasks) {
+          return;
+        }
+
+        const positions = new Map(state.tasks.map(item => [item.taskId, item.position]));
+        this.board = {
+          ...this.board,
+          columns: this.board.columns.map(column => column.id === state.columnId
+            ? {
+                ...column,
+                tasks: this.normalizeTasks(column.tasks.map(task => positions.has(task.id)
+                  ? { ...task, position: positions.get(task.id)! }
+                  : task))
+              }
+            : column)
+        };
+        return;
+      }
+      case 'ColumnCreated': {
+        const column = event.state as ColumnSummary;
+        if (!column?.id || this.board.columns.some(item => item.id === column.id)) {
+          return;
+        }
+
+        this.board = this.normalizeBoard({ ...this.board, columns: [...this.board.columns, { ...column, tasks: [] }] });
+        return;
+      }
+      case 'ColumnUpdated': {
+        const column = event.state as ColumnSummary;
+        if (column?.id) {
+          this.board = this.normalizeBoard({ ...this.board, columns: this.board.columns.map(item => item.id === column.id ? { ...item, ...column } : item) });
+        }
+        return;
+      }
+      case 'ColumnDeleted': {
+        if (event.resourceId) {
+          this.board = { ...this.board, columns: this.board.columns.filter(column => column.id !== event.resourceId) };
+        }
+        return;
+      }
+      case 'ColumnsReordered': {
+        const columns = event.state as ColumnSummary[];
+        if (Array.isArray(columns)) {
+          this.applyColumnOrder(columns);
+        }
+        return;
+      }
+    }
+  }
+
+  downloadReport(format: 'pdf' | 'excel'): void {
+    this.downloadingReport = format;
+    this.boardService.downloadReport(this.projectId, format).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: response => {
+        const blob = response.body;
+        if (!blob) {
+          this.downloadingReport = null;
+          this.showError({ message: 'El reporte llegó vacío.' }, 'Descarga fallida');
+          return;
+        }
+
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = this.fileNameFromHeaders(response.headers.get('content-disposition'))
+          ?? `agile-task-hub-project-${this.projectId}.${format === 'pdf' ? 'pdf' : 'xlsx'}`;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+        this.downloadingReport = null;
+      },
+      error: error => { this.downloadingReport = null; this.showError(error, 'Descarga fallida'); }
+    });
+  }
+
   goBack(): void { void this.router.navigate(['/projects']); }
 
   private applyColumnOrder(summaries: ColumnSummary[]): void {
@@ -358,6 +498,15 @@ export class BoardComponent implements OnInit {
   private normalizeTasks(tasks: BoardTask[]): BoardTask[] { return [...tasks].sort((a, b) => a.position - b.position); }
   private priorityValue(priority: BoardTask['priority']): number { return { Low: 1, Medium: 2, High: 3, Urgent: 4 }[priority]; }
   private cloneBoard(board: ProjectBoard): ProjectBoard { return { ...board, columns: board.columns.map(column => ({ ...column, tasks: column.tasks.map(task => ({ ...task, responsibleUser: task.responsibleUser ? { ...task.responsibleUser } : null })) })) }; }
+
+  private fileNameFromHeaders(contentDisposition: string | null): string | null {
+    if (!contentDisposition) {
+      return null;
+    }
+
+    const match = /filename\*?=(?:UTF-8'')?["']?([^;"']+)["']?/i.exec(contentDisposition);
+    return match?.[1] ? decodeURIComponent(match[1]) : null;
+  }
 
   private showRollback(detail: string): void { this.messageService.add({ severity: 'warn', summary: 'Cambio revertido', detail }); }
 

@@ -10,7 +10,9 @@ namespace AgileTaskHub.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/projects/{projectId:guid}")]
-public sealed class BoardController(AppDbContext dbContext) : ControllerBase
+public sealed class BoardController(
+    AppDbContext dbContext,
+    IBoardEventPublisher boardEventPublisher) : ControllerBase
 {
     [HttpGet("board")]
     public async Task<ActionResult<BoardResponse>> GetBoard(Guid projectId, CancellationToken cancellationToken)
@@ -92,6 +94,7 @@ public sealed class BoardController(AppDbContext dbContext) : ControllerBase
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var response = MapColumn(column);
+        await PublishAsync(projectId, BoardEventTypes.ColumnCreated, column.Id, response, cancellationToken);
         return Created($"/api/projects/{projectId}/columns/{column.Id}", response);
     }
 
@@ -116,7 +119,9 @@ public sealed class BoardController(AppDbContext dbContext) : ControllerBase
 
         column.Name = request.Name.Trim();
         await dbContext.SaveChangesAsync(cancellationToken);
-        return Ok(MapColumn(column));
+        var response = MapColumn(column);
+        await PublishAsync(projectId, BoardEventTypes.ColumnUpdated, column.Id, response, cancellationToken);
+        return Ok(response);
     }
 
     [HttpDelete("columns/{columnId:guid}")]
@@ -144,6 +149,7 @@ public sealed class BoardController(AppDbContext dbContext) : ControllerBase
 
         dbContext.BoardColumns.Remove(column);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await PublishAsync(projectId, BoardEventTypes.ColumnDeleted, columnId, null, cancellationToken);
         return NoContent();
     }
 
@@ -181,11 +187,13 @@ public sealed class BoardController(AppDbContext dbContext) : ControllerBase
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        return Ok(columns
+        var response = columns
             .OrderBy(column => column.Position)
             .ThenBy(column => column.Id)
             .Select(MapColumn)
-            .ToList());
+            .ToList();
+        await PublishAsync(projectId, BoardEventTypes.ColumnsReordered, null, response, cancellationToken);
+        return Ok(response);
     }
 
     [HttpPost("tasks")]
@@ -253,6 +261,7 @@ public sealed class BoardController(AppDbContext dbContext) : ControllerBase
             .AsNoTracking()
             .Include(item => item.ResponsibleUser)
             .SingleAsync(item => item.Id == task.Id, cancellationToken);
+        await PublishAsync(projectId, BoardEventTypes.TaskCreated, task.Id, MapTask(response), cancellationToken);
         return Created($"/api/projects/{projectId}/tasks/{task.Id}", MapTask(response));
     }
 
@@ -292,7 +301,9 @@ public sealed class BoardController(AppDbContext dbContext) : ControllerBase
             .AsNoTracking()
             .Include(item => item.ResponsibleUser)
             .SingleAsync(item => item.Id == taskId, cancellationToken);
-        return Ok(MapTask(response));
+        var mappedResponse = MapTask(response);
+        await PublishAsync(projectId, BoardEventTypes.TaskUpdated, taskId, mappedResponse, cancellationToken);
+        return Ok(mappedResponse);
     }
 
     [HttpDelete("tasks/{taskId:guid}")]
@@ -311,6 +322,7 @@ public sealed class BoardController(AppDbContext dbContext) : ControllerBase
 
         dbContext.TaskItems.Remove(task);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await PublishAsync(projectId, BoardEventTypes.TaskDeleted, taskId, null, cancellationToken);
         return NoContent();
     }
 
@@ -372,7 +384,9 @@ public sealed class BoardController(AppDbContext dbContext) : ControllerBase
         await transaction.CommitAsync(cancellationToken);
 
         var canonicalBoard = await LoadProjectWithBoardAsync(projectId, cancellationToken);
-        return Ok(MapBoard(canonicalBoard!));
+        var response = MapBoard(canonicalBoard!);
+        await PublishAsync(projectId, BoardEventTypes.TaskMoved, taskId, response, cancellationToken);
+        return Ok(response);
     }
 
     [HttpPatch("columns/{columnId:guid}/tasks/sort-by-priority")]
@@ -413,11 +427,29 @@ public sealed class BoardController(AppDbContext dbContext) : ControllerBase
             .ThenBy(task => task.Id)
             .Select(MapTaskExpression())
             .ToListAsync(cancellationToken);
+        await PublishAsync(
+            projectId,
+            BoardEventTypes.TasksReordered,
+            columnId,
+            new TasksReorderedEventState(
+                columnId,
+                response.Select(task => new TaskPositionEventState(task.Id, task.Position)).ToList()),
+            cancellationToken);
         return Ok(response);
     }
 
     private async Task<bool> ProjectExistsAsync(Guid projectId, CancellationToken cancellationToken) =>
         await dbContext.Projects.AsNoTracking().AnyAsync(project => project.Id == projectId, cancellationToken);
+
+    private Task PublishAsync(
+        Guid projectId,
+        string eventType,
+        Guid? resourceId,
+        object? state,
+        CancellationToken cancellationToken) =>
+        boardEventPublisher.PublishAsync(
+            new BoardEvent(projectId, resourceId, eventType, DateTime.UtcNow, state),
+            cancellationToken);
 
     private async Task<Project?> LoadProjectWithBoardAsync(Guid projectId, CancellationToken cancellationToken) =>
         await dbContext.Projects

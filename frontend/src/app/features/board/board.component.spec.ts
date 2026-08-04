@@ -1,30 +1,41 @@
 import { CdkDragDrop } from '@angular/cdk/drag-drop';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpHeaders, HttpResponse } from '@angular/common/http';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { Observable, Subject, of, throwError } from 'rxjs';
 import { BoardComponent } from './board.component';
 import { BoardService } from '../../core/services/board.service';
 import { BoardTask, ProjectBoard } from '../../core/models/board.model';
+import { BoardRealtimeEvent, BoardRealtimeService } from '../../core/services/board-realtime.service';
 
 describe('BoardComponent', () => {
   let fixture: ComponentFixture<BoardComponent>;
   let component: BoardComponent;
   let boardService: jasmine.SpyObj<BoardService>;
+  let realtimeService: jasmine.SpyObj<BoardRealtimeService>;
+  let realtimeEvents: Subject<BoardRealtimeEvent>;
   let messageService: MessageService;
   let initialBoard: ProjectBoard;
 
   beforeEach(async () => {
     boardService = jasmine.createSpyObj<BoardService>('BoardService', [
       'getBoard', 'createColumn', 'updateColumn', 'deleteColumn', 'reorderColumns',
-      'createTask', 'updateTask', 'deleteTask', 'moveTask', 'sortTasksByPriority'
+      'createTask', 'updateTask', 'deleteTask', 'moveTask', 'sortTasksByPriority', 'downloadReport'
     ]);
+    realtimeEvents = new Subject<BoardRealtimeEvent>();
+    realtimeService = jasmine.createSpyObj<BoardRealtimeService>('BoardRealtimeService', ['joinBoard', 'leaveBoard'], {
+      events$: realtimeEvents.asObservable()
+    });
+    realtimeService.joinBoard.and.returnValue(Promise.resolve());
+    realtimeService.leaveBoard.and.returnValue(Promise.resolve());
     initialBoard = createBoard();
     boardService.getBoard.and.returnValue(of(cloneBoard(initialBoard)));
     await TestBed.configureTestingModule({
       imports: [BoardComponent],
       providers: [
         { provide: BoardService, useValue: boardService },
+        { provide: BoardRealtimeService, useValue: realtimeService },
         MessageService,
         ConfirmationService,
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ projectId: 'project-1' }) } } }
@@ -94,6 +105,63 @@ describe('BoardComponent', () => {
 
     expect(selected.tasks.map(task => task.id)).toEqual(originalIds);
     expect(messageService.add).toHaveBeenCalledWith(jasmine.objectContaining({ severity: 'warn' }));
+  });
+
+  it('applies TaskMoved and TasksReordered events only to the open project', () => {
+    const selected = component.board!.columns[0];
+    const firstTask = selected.tasks[0];
+    const secondTask = selected.tasks[1];
+
+    realtimeEvents.next({
+      projectId: 'other-project', resourceId: selected.id, eventType: 'TasksReordered', timestamp: '',
+      state: { columnId: selected.id, tasks: [{ taskId: secondTask.id, position: 1024 }, { taskId: firstTask.id, position: 2048 }] }
+    });
+    expect(selected.tasks.map(task => task.id)).toEqual(['task-1', 'task-2']);
+
+    realtimeEvents.next({
+      projectId: 'project-1', resourceId: 'task-1', eventType: 'TasksReordered', timestamp: '',
+      state: { columnId: selected.id, tasks: [{ taskId: secondTask.id, position: 1024 }, { taskId: firstTask.id, position: 2048 }] }
+    });
+    expect(component.board!.columns[0].tasks.map(task => task.id)).toEqual(['task-2', 'task-1']);
+
+    const canonical = cloneBoard(component.board!);
+    canonical.columns[1].tasks = [canonical.columns[0].tasks[0]];
+    canonical.columns[0].tasks = [canonical.columns[0].tasks[1]];
+    canonical.columns[0].tasks[0].columnId = 'column-1';
+    canonical.columns[1].tasks[0].columnId = 'column-2';
+    realtimeEvents.next({ projectId: 'project-1', resourceId: 'task-1', eventType: 'TaskMoved', timestamp: '', state: canonical });
+
+    expect(component.board!.columns[1].tasks[0].id).toBe('task-2');
+  });
+
+  it('downloads a Blob using the server filename and releases the object URL', () => {
+    boardService.downloadReport.and.returnValue(of(new HttpResponse({
+      body: new Blob(['pdf'], { type: 'application/pdf' }),
+      headers: new HttpHeaders({ 'content-disposition': 'attachment; filename="project.pdf"' })
+    })));
+    const createUrl = spyOn(URL, 'createObjectURL').and.returnValue('blob:test');
+    const revokeUrl = spyOn(URL, 'revokeObjectURL');
+    const click = spyOn(HTMLAnchorElement.prototype, 'click');
+    jasmine.clock().install();
+
+    try {
+      component.downloadReport('pdf');
+      jasmine.clock().tick(0);
+
+      expect(boardService.downloadReport).toHaveBeenCalledWith('project-1', 'pdf');
+      expect(createUrl).toHaveBeenCalled();
+      expect(click).toHaveBeenCalled();
+      expect(component.downloadingReport).toBeNull();
+      expect(revokeUrl).toHaveBeenCalledWith('blob:test');
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
+
+  it('leaves the board and cleans the realtime subscription on destroy', () => {
+    fixture.destroy();
+
+    expect(realtimeService.leaveBoard).toHaveBeenCalled();
   });
 });
 
